@@ -1,8 +1,9 @@
 import { defineStore } from "pinia"
 import { ref } from "vue"
-import _, { first } from 'lodash';
+import _, { first, result } from 'lodash';
 
-const max_tape_size = 88888888
+const MAX_TAPE_SIZE = 8888
+const MAX_TAPES = 28
 
 class Memory {
     name = ""
@@ -57,98 +58,104 @@ class Queue extends Memory {
 }
 
 class IchiD_Tape extends Memory {
-    #data = []
-    #position = 0
+    data = []
+    position = 0
+    type = "1D"
 
     constructor(name) {
         super(name)
-        this.#data = Array(max_tape_size).fill('#');
-        this.#position = max_tape_size / 2
+        this.data = Array(MAX_TAPE_SIZE).fill('#');
+        this.position = max_tape_size / 2
     }
 
     init_tape(input_string) {
         for (let i = 1; i <= input_string.length; i++) {
-            this.#data[this.#position + i] = input_string[i]
+            this.data[this.position + i] = input_string[i - 1]
         }
     }
 
-    see_left() {
-        return this.#data[this.#position - 1]
+    read(direction) {
+        if (direction == "L") {
+            return this.data[this.position - 1]
+        }
+        else if (direction == "R") {
+            return this.data[this.position + 1]
+        }
+        else {
+            console.log("wut")
+        }
     }
 
-    see_right() {
-        return this.#data[this.#position + 1]
-    }
-
-    move_left() {
-        this.#position--
-    }
-
-    move_right() {
-        this.#position++
+    move(direction) {
+        if (direction == "L") {
+            this.position--
+        }
+        else if (direction == "R") {
+            this.position++
+        }
+        else {
+            console.log("wut")
+        }
     }
 
     write(value) {
-        this.#data[this.#position] = value
+        this.data[this.position] = value
     }
 
 }
 
 class NiD_Tape extends Memory {
-    #data = []
-    #x_position = 0
-    #y_position = 0
+    data = []
+    x_position = 0
+    y_position = 0
+    type = "2D"
 
     constructor(name) {
         super(name)
-        for (let i = 0; i < max_tape_size; i++) {
-            this.#data.push(Array(max_tape_size).fill('#'))
+        for (let i = 0; i < MAX_TAPE_SIZE; i++) {
+            this.data.push(Array(MAX_TAPES).fill("#"))
         }
-        this.#x_position = max_tape_size / 2
-        this.#y_position = max_tape_size / 2
+        this.x_position = Math.floor(MAX_TAPE_SIZE / 2)
+        this.y_position = Math.floor(MAX_TAPES / 2)
     }
 
     init_tape(input_string) {
         for (let i = 1; i <= input_string.length; i++) {
-            this.#data[this.#x_position + i][this.#y_position] = input_string[i]
+            this.data[this.x_position + i][this.y_position] = input_string[i - 1]
         }
     }
 
 
-    see_left() {
-        return this.#data[this.#x_position - 1][this.#y_position]
+    read(direction) {
+        if (direction == "L") {
+            return this.data[this.x_position - 1][this.y_position]
+        } else if (direction == "R") {
+            return this.data[this.x_position + 1][this.y_position]
+        } else if (direction == "U") {
+            return this.data[this.x_position][this.y_position - 1]
+        } else if (direction == "D") {
+            return this.data[this.x_position][this.y_position + 1]
+        } else {
+            console.log("wut")
+        }
     }
 
-    see_right() {
-        return this.#data[this.#x_position + 1][this.#y_position]
-    }
-
-    see_up() {
-        return this.#data[this.#x_position][this.#y_position - 1]
-    }
-
-    see_down() {
-        return this.#data[this.#x_position][this.#y_position + 1]
-    }
-
-    move_left() {
-        this.#x_position--
-    }
-
-    move_right() {
-        this.#x_position++
-    }
-
-    move_up() {
-        this.#y_position--
-    }
-
-    move_down() {
-        this.#y_position++
+    move(direction) {
+        if (direction == "L") {
+            this.x_position--
+        } else if (direction == "R") {
+            this.x_position++
+        } else if (direction == "U") {
+            this.y_position--
+        } else if (direction == "D") {
+            this.y_position++
+        } else {
+            console.log("wut")
+        }
     }
 
     write(value) {
-        this.#data[this.#x_position][this.#y_position] = value
+        this.data[this.x_position][this.y_position] = value
     }
 
 }
@@ -169,7 +176,7 @@ class State {
     }
 
     run(og_timeline) {
-        if(this.name === "reject") {
+        if (this.name === "reject") {
             return []
         }
     }
@@ -252,55 +259,86 @@ class Scan extends State {
 }
 
 class Write extends State {
-    
-        memory = ""
-    
-        constructor(name, transitions, memory, type_name) {
-            super(name, type_name)
-            this.transitions = transitions
-            this.memory = memory
+
+    memory = ""
+
+    constructor(name, transitions, memory, type_name) {
+        super(name, type_name)
+        this.transitions = transitions
+        this.memory = memory
+    }
+
+    run(og_timeline) {
+        let resulting_timelines = []
+
+        for (let transition of this.transitions) {
+            let copy_timeline = _.cloneDeep(og_timeline)
+            let memory = copy_timeline.get_memory(this.memory)
+            memory.push(transition[0])
+            copy_timeline.current_state = transition[1]
+            resulting_timelines.push(copy_timeline)
         }
-    
-        run(og_timeline) {
-            let resulting_timelines = []
-    
-            for (let transition of this.transitions) {
-                let copy_timeline = _.cloneDeep(og_timeline)
-                let memory = copy_timeline.get_memory(this.memory)
-                memory.push(transition[0])
-                copy_timeline.current_state = transition[1]
-                resulting_timelines.push(copy_timeline)
-            }
-    
-            return resulting_timelines
-        }
+
+        return resulting_timelines
+    }
 }
 
 class Read extends State {
-    
-        memory = ""
-    
-        constructor(name, transitions, memory, type_name) {
-            super(name, type_name)
-            this.transitions = transitions
-            this.memory = memory
-        }
-    
-        run(og_timeline) {
-            let resulting_timelines = []
-    
-            for (let transition of this.transitions) {
-                let copy_timeline = _.cloneDeep(og_timeline)
-                let memory = copy_timeline.get_memory(this.memory)
-                if(memory.read() == transition[0]) {
-                    memory.pop()
-                    copy_timeline.current_state = transition[1]
-                    resulting_timelines.push(copy_timeline)
-                }
+
+    memory = ""
+
+    constructor(name, transitions, memory, type_name) {
+        super(name, type_name)
+        this.transitions = transitions
+        this.memory = memory
+    }
+
+    run(og_timeline) {
+        let resulting_timelines = []
+
+        for (let transition of this.transitions) {
+            let copy_timeline = _.cloneDeep(og_timeline)
+            let memory = copy_timeline.get_memory(this.memory)
+            if (memory.read() == transition[0]) {
+                memory.pop()
+                copy_timeline.current_state = transition[1]
+                resulting_timelines.push(copy_timeline)
             }
-    
-            return resulting_timelines
         }
+
+        return resulting_timelines
+    }
+}
+
+class Move extends State {
+
+    memory = ""
+    direction = "R"
+
+    constructor(name, transitions, memory, type_name, direction) {
+        super(name, type_name)
+        this.transitions = transitions
+        this.memory = memory
+        this.direction = direction
+    }
+
+    run(og_timeline) {
+        let resulting_timelines = []
+
+        for (let transition of this.transitions) {
+            let copy_timeline = _.cloneDeep(og_timeline)
+            let memory = copy_timeline.get_memory(this.memory)
+            if(memory.read(this.direction) == transition[0]){
+                memory.move(this.direction)
+                memory.write(transition[1])
+                copy_timeline.current_state = transition[2]
+                resulting_timelines.push(copy_timeline)
+            }
+        }
+
+        return resulting_timelines
+    }
+    
 }
 
 export const useSpecsStore = defineStore(
@@ -407,8 +445,16 @@ export const useSpecsStore = defineStore(
                         states.set(stateName, new Scan(stateName, stateTransitions, 'L', input_string.value, "SL"))
                     } else if (stateType == "WRITE") {
                         states.set(stateName, new Write(stateName, stateTransitions, stateMemory, "W-" + stateMemory))
-                    }else if (stateType == "READ") {
+                    } else if (stateType == "READ") {
                         states.set(stateName, new Read(stateName, stateTransitions, stateMemory, "R-" + stateMemory))
+                    } else if (stateType == "RIGHT") {
+                        states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "右-" + stateMemory, "R"))
+                    } else if (stateType == "LEFT") {
+                        states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "左-" + stateMemory, "L"))
+                    } else if (stateType == "RIGHT") {
+                        states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "上-" + stateMemory, "U"))
+                    } else if (stateType == "DOWN") {
+                        states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "下-" + stateMemory, "D"))
                     }
                 }
 
@@ -418,29 +464,37 @@ export const useSpecsStore = defineStore(
             states.set("reject", new State("reject", "Rej"))
 
             if (first_tape_name != "")
-                memories[first_tape_name].init_tape(input_string.value)
+                memories.get(first_tape_name).init_tape(input_string.value.substring(1, input_string.value.length))
             let first_timeline = new timeline(memories, start_state_name)
             timelines.value.push(first_timeline)
-
-            console.log(states)
         }
 
-        const next = () => {
+        const next = (current_timeline_index) => {
             let new_timelines = []
+            let next_timeline_index = -1
 
+            let index = 0
             for (let timeline of timelines.value) {
                 let current_state = states.get(timeline.current_state)
                 let resulting_timelines = current_state.run(timeline)
+                if(current_timeline_index == index && resulting_timelines.length != 0){
+                    next_timeline_index = new_timelines.length
+                }
                 new_timelines = new_timelines.concat(resulting_timelines)
+                index++
             }
             timelines.value = new_timelines
 
             let good_timelines = timelines.value.filter((timeline) => timeline.current_state == "accept")
 
-
             if (good_timelines.length > 0) {
                 good_timeline_index.value = timelines.value.indexOf(good_timelines[0])
             }
+
+            if(next_timeline_index === -1)
+                next_timeline_index = 0
+
+            return next_timeline_index
         }
 
         return {
@@ -453,7 +507,7 @@ export const useSpecsStore = defineStore(
             good_timeline_index,
             memory_names,
             initSpecs,
-            next       
+            next
         }
     }
 })
