@@ -65,7 +65,7 @@ class IchiD_Tape extends Memory {
     constructor(name) {
         super(name)
         this.data = Array(MAX_TAPE_SIZE).fill('#');
-        this.position = max_tape_size / 2
+        this.position = MAX_TAPE_SIZE / 2
     }
 
     init_tape(input_string) {
@@ -221,6 +221,13 @@ class Print extends State {
 
         return resulting_timelines
     }
+
+    isNonDeterministic() {
+        if (this.transitions.length > 1) {
+            return true
+        }
+        return false
+    }
 }
 
 class Scan extends State {
@@ -256,6 +263,19 @@ class Scan extends State {
 
         return resulting_timelines
     }
+
+    isNonDeterministic() {
+        let nonDet = false
+        let seen = new Set()
+        for (let transition of this.transitions) {
+            if (seen.has(transition[0])) {
+                nonDet = true
+                break
+            }
+            seen.add(transition[0])
+        }
+        return nonDet
+    }
 }
 
 class Write extends State {
@@ -280,6 +300,13 @@ class Write extends State {
         }
 
         return resulting_timelines
+    }
+
+    isNonDeterministic() {
+        if (this.transitions.length > 1) {
+            return true
+        }
+        return false
     }
 }
 
@@ -307,6 +334,19 @@ class Read extends State {
         }
 
         return resulting_timelines
+    }
+
+    isNonDeterministic() {
+        let nonDet = false
+        let seen = new Set()
+        for (let transition of this.transitions) {
+            if (seen.has(transition[0])) {
+                nonDet = true
+                break
+            }
+            seen.add(transition[0])
+        }
+        return nonDet
     }
 }
 
@@ -339,6 +379,18 @@ class Move extends State {
         return resulting_timelines
     }
     
+    isNonDeterministic() {
+        let nonDet = false
+        let seen = new Set()
+        for (let transition of this.transitions) {
+            if (seen.has(transition[0])) {
+                nonDet = true
+                break
+            }
+            seen.add(transition[0])
+        }
+        return nonDet
+    }
 }
 
 export const useSpecsStore = defineStore(
@@ -353,6 +405,7 @@ export const useSpecsStore = defineStore(
         const start_state = ref("")
         const good_timeline_index = ref(-1)
         const memory_names = ref([])
+        const non_deterministic_state_names = ref([])
 
         const initSpecs = (specs, input) => {
             rawSpecs.value = specs
@@ -451,7 +504,7 @@ export const useSpecsStore = defineStore(
                         states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "右-" + stateMemory, "R"))
                     } else if (stateType == "LEFT") {
                         states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "左-" + stateMemory, "L"))
-                    } else if (stateType == "RIGHT") {
+                    } else if (stateType == "UP") {
                         states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "上-" + stateMemory, "U"))
                     } else if (stateType == "DOWN") {
                         states.set(stateName, new Move(stateName, stateTransitions, stateMemory, "下-" + stateMemory, "D"))
@@ -467,6 +520,15 @@ export const useSpecsStore = defineStore(
                 memories.get(first_tape_name).init_tape(input_string.value.substring(1, input_string.value.length))
             let first_timeline = new timeline(memories, start_state_name)
             timelines.value.push(first_timeline)
+
+            for (let state of states.values()) {
+                if(state.name == "accept" || state.name == "reject"){
+                    continue
+                }
+                if (state.isNonDeterministic()) {
+                    non_deterministic_state_names.value.push(state.name)
+                }
+            }
         }
 
         const next = (current_timeline_index) => {
@@ -506,6 +568,7 @@ export const useSpecsStore = defineStore(
             start_state,
             good_timeline_index,
             memory_names,
+            non_deterministic_state_names,
             initSpecs,
             next
         }

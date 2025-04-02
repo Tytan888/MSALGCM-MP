@@ -6,7 +6,7 @@
         <div class="flex h-1/10 w-full justify-center items-center">
             <div class=" ml-10 mr-10 flex flex-col">
                 <h1>Total Timelines: {{ num_timelines }}</h1>
-                <select v-model="selected_timeline" @change="reload_graph(selected_timeline, false)">
+                <select class="text-white bg-soft rounded-lg p-1" v-model="selected_timeline" @change="reload_graph(selected_timeline, false); reload_memory(selected_memory, selected_timeline)">
                     <option v-for="n in num_timelines" :value="n - 1">{{ n - 1 }}</option>
                 </select>
             </div>
@@ -40,7 +40,7 @@
                 @click="back">Back to Start Page</button>
         </div>
         <div v-if="memory_names.length != 0" class="flex h-1/10 w-full justify-center items-center bg-mute">
-            <select class="ml-3 mr-3" v-model="selected_memory"
+            <select class="ml-3 mr-3 text-white bg-mute rounded-lg p-1" v-model="selected_memory"
                 @change="reload_memory(selected_memory, selected_timeline)">
                 <option v-for="memory in memory_names" :value="memory">{{ memory }}</option>
             </select>
@@ -232,6 +232,12 @@ export default {
                             style: {
                                 'background-color': 'lightgreen'
                             }
+                        },
+                        {
+                            selector: '.nondet',
+                            style: {
+                                'color': 'green'
+                            }
                         }
                     ],
                     layout: {
@@ -261,6 +267,11 @@ export default {
             else {
                 this.cy.$('.current').removeClass("current")
                 this.cy.getElementById(specsStore.timelines[timeline].current_state).addClass('current')
+            }
+
+            for(let nondet of specsStore.non_deterministic_state_names){
+                console.log(nondet)
+                this.cy.getElementById(nondet).addClass('nondet')
             }
 
             this.output_string = specsStore.timelines[timeline].output_string
